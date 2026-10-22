@@ -25,6 +25,18 @@
         .gaming-gradient {
             background: linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #8b5cf6 100%);
         }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            background: transparent;
+            bottom: 0;
+            color: transparent;
+            cursor: pointer;
+            height: auto;
+            left: 0;
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: auto;
+        }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: #070913; }
         ::-webkit-scrollbar-thumb { background: #10b981; border-radius: 4px; }
@@ -41,7 +53,7 @@
                 </div>
                 <div>
                     <h1 class="font-extrabold text-base tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-purple-400 flex items-center gap-2">
-                        RIDER<span class="text-white">SHEET</span> <span class="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-widest">PRO v3.2</span>
+                        RIDER<span class="text-white">SHEET</span> <span class="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-widest">PRO v3.5</span>
                     </h1>
                     <p class="text-[11px] text-slate-400 font-medium" id="currentDateHeader">กำลังเชื่อมต่อคลาวด์...</p>
                 </div>
@@ -71,8 +83,10 @@
         <div id="tab-dashboard" class="space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="glass-gaming p-4 rounded-2xl flex items-center justify-between">
-                    <span class="text-xs text-slate-300 font-semibold">📅 เลือกวันที่ดูข้อมูล:</span>
-                    <input type="date" id="viewDateInput" onchange="changeViewDate()" class="bg-[#05070e] border border-emerald-500/30 rounded-xl px-3 py-2 text-xs text-emerald-400 font-bold focus:outline-none focus:border-emerald-500 cursor-pointer">
+                    <span class="text-xs text-slate-300 font-semibold flex items-center gap-2">📅 เลือกวันที่ดูข้อมูล:</span>
+                    <div class="relative">
+                        <input type="date" id="viewDateInput" onchange="changeViewDate()" class="bg-[#0b0f19] border-2 border-emerald-500/50 hover:border-emerald-400 rounded-xl px-4 py-2 text-xs text-emerald-300 font-extrabold focus:outline-none focus:border-emerald-400 cursor-pointer shadow-lg shadow-emerald-500/10 transition">
+                    </div>
                 </div>
 
                 <div class="glass-gaming p-4 rounded-2xl flex items-center justify-between">
@@ -214,7 +228,7 @@
             <div class="max-w-2xl mx-auto space-y-6">
                 <div class="glass-gaming p-4 rounded-2xl flex items-center justify-between">
                     <span class="text-xs text-slate-300 font-semibold">📅 บันทึกลงวันที่:</span>
-                    <input type="date" id="recordDateInput" onchange="syncRecordDate()" class="bg-[#05070e] border border-emerald-500/30 rounded-xl px-3 py-2 text-xs text-emerald-400 font-bold focus:outline-none focus:border-emerald-500 cursor-pointer">
+                    <input type="date" id="recordDateInput" onchange="syncRecordDate()" class="bg-[#0b0f19] border-2 border-emerald-500/50 hover:border-emerald-400 rounded-xl px-4 py-2 text-xs text-emerald-300 font-extrabold focus:outline-none focus:border-emerald-400 cursor-pointer shadow-lg shadow-emerald-500/10 transition">
                 </div>
 
                 <div class="glass-gaming p-6 rounded-3xl space-y-4 border-emerald-500/30">
@@ -372,8 +386,9 @@
 
         async function addLogToCloud(dateStr, type, source, name, amount) {
             if (!supabaseClient) return alert('ยังไม่ได้เชื่อมต่อคลาวด์');
+            let uniqueName = `${name} (${new Date().toLocaleTimeString('th-TH')})`;
             let { error } = await supabaseClient.from('rider_logs').insert([
-                { date: dateStr, type: type, app_source: source, name: name, amount: amount }
+                { date: dateStr, type: type, app_source: source, name: uniqueName, amount: amount }
             ]);
             if (error) {
                 alert('เกิดข้อผิดพลาด: ' + error.message);
