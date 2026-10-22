@@ -41,7 +41,7 @@
                 </div>
                 <div>
                     <h1 class="font-extrabold text-base tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-purple-400 flex items-center gap-2">
-                        RIDER<span class="text-white">SHEET</span> <span class="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-widest">PRO v3</span>
+                        RIDER<span class="text-white">SHEET</span> <span class="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-widest">PRO v3.1</span>
                     </h1>
                     <p class="text-[11px] text-slate-400 font-medium" id="currentDateHeader">กำลังเชื่อมต่อคลาวด์...</p>
                 </div>
@@ -304,7 +304,7 @@
     <!-- Script Logic -->
     <script>
         const SUPABASE_URL = 'https://tytulcsckeerazbpjjis.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dHVsY3Nja2VlcmF6YnBqaWlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyMzQ1NjcsImV4cCI6MjA1NjgxMDU2N30.ตัวคีย์ของคุณ'; // ใส่คีย์เดิมของคุณ
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dHVsY3Nja2VlcmF6YnBqamlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2ODIxODcsImV4cCI6MjEwODI1ODE4N30.vzm-06D2T46EFyNLWqWljledIkZ8l2N2xy1wPPh6pBI';
         
         let supabaseClient = null;
         try {
@@ -342,13 +342,14 @@
 
                 dbData = {};
                 if (data) {
-                    data.forEach(row => {
+                    data.forEach((row, index) => {
                         let d = row.date;
                         if (!dbData[d]) {
                             dbData[d] = { income: 0, cost: 0, logs: [] };
                         }
                         dbData[d].logs.push({
-                            id: row.id,
+                            index: index,
+                            date: row.date,
                             type: row.type,
                             source: row.app_source,
                             name: row.name,
@@ -381,15 +382,20 @@
             }
         }
 
-        async function deleteLogFromCloud(logId, dateStr) {
+        async function deleteSingleLog(dateStr, name, amount, type) {
             if (!supabaseClient) return;
-            // ใช้คำสั่งลบด้วย id ของแถวโดยตรง
-            let { error } = await supabaseClient.from('rider_logs').delete().eq('id', logId);
+            let { error } = await supabaseClient.from('rider_logs')
+                .delete()
+                .eq('date', dateStr)
+                .eq('name', name)
+                .eq('amount', amount)
+                .eq('type', type)
+                .limit(1);
+
             if (error) {
                 alert('ลบไม่สำเร็จ: ' + error.message);
             } else {
                 await fetchCloudData();
-                renderExcelTable();
             }
         }
 
@@ -637,12 +643,12 @@
                                     <p class="font-bold text-white text-xs">${item.name}</p>
                                     ${badgeApp}
                                 </div>
-                                <span class="text-slate-500 text-[10px] font-medium">${item.time}</span>
+                                <span class="text-slate-500 text-[10px] font-medium">${item.date}</span>
                             </div>
                         </div>
                         <div class="flex items-center gap-4">
                             <span class="${item.type === 'income' ? 'text-emerald-400' : 'text-rose-400'} font-black text-xs">${sign}฿${item.amount.toLocaleString()}</span>
-                            <button onclick="deleteLogFromCloud(${item.id}, '${viewingDate}')" class="text-slate-500 hover:text-rose-400 p-1.5 rounded-xl hover:bg-rose-500/20 transition cursor-pointer" title="ลบ">🗑️</button>
+                            <button onclick="deleteSingleLog('${item.date}', '${item.name}', ${item.amount}, '${item.type}')" class="text-slate-500 hover:text-rose-400 p-1.5 rounded-xl hover:bg-rose-500/20 transition cursor-pointer" title="ลบ">🗑️</button>
                         </div>
                     </div>`;
                 });
