@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiderSheet Pro - Cloud Sync</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- นำเข้าไลบรารี Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Prompt', 'Plus Jakarta Sans', sans-serif; }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glow-soft {
+            box-shadow: 0 10px 30px -10px rgba(16, 185, 129, 0.15);
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #070b14; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-[#070b14] text-slate-100 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-white relative">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-[#0f172a]/90 backdrop-blur-xl border-b border-slate-800/80 sticky top-0 z-40 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-orange-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <span class="text-slate-950 font-bold text-lg">🛵</span>
+            </div>
+            <div>
+                <h1 class="font-bold text-base tracking-tight text-white flex items-center gap-2">
+                    RiderSheet <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">Cloud Pro ☁️</span>
+                </h1>
+                <p class="text-xs text-slate-400" id="currentDateHeader">กำลังเชื่อมต่อคลาวด์...</p>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex items-center bg-[#070b14] p-1.5 rounded-2xl border border-slate-800/80 gap-1 overflow-x-auto max-w-full">
+            <button onclick="switchTab('dashboard')" id="btn-dashboard" class="px-4 py-2 text-xs font-semibold rounded-xl text-emerald-400 bg-emerald-500/10 transition shadow-sm whitespace-nowrap cursor-pointer">📈 แดชบอร์ด</button>
+            <button onclick="switchTab('analytics')" id="btn-analytics" class="px-4 py-2 text-xs font-medium rounded-xl text-slate-400 hover:text-white transition whitespace-nowrap cursor-pointer">📊 กราฟสรุป</button>
+            <button onclick="switchTab('fastcheck')" id="btn-fastcheck" class="px-4 py-2 text-xs font-medium rounded-xl text-slate-400 hover:text-white transition whitespace-nowrap cursor-pointer">⚡ เช็กงาน 10 วิ</button>
+            <button onclick="switchTab('quickadd')" id="btn-quickadd" class="px-4 py-2 text-xs font-medium rounded-xl text-slate-400 hover:text-white transition whitespace-nowrap cursor-pointer">➕ บันทึก</button>
+            <button onclick="switchTab('excelSheet')" id="btn-excelSheet" class="px-4 py-2 text-xs font-medium rounded-xl text-slate-400 hover:text-white transition whitespace-nowrap cursor-pointer">📅 ตารางเดือน</button>
+        </div>
+    </header>
+
+    <!-- ⚡ ปุ่มลอยด่วนพิเศษ (Floating Button) -->
+    <button onclick="switchTab('fastcheck')" class="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-extrabold px-5 py-4 rounded-full shadow-2xl shadow-emerald-500/50 flex items-center gap-2.5 transition-all transform hover:scale-105 cursor-pointer border border-emerald-300/30">
+        <span class="text-lg">⚡</span>
+        <span class="text-xs tracking-wide">เช็กงานด่วน 10 วิ</span>
+    </button>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 space-y-6 pb-24">
+
+        <!-- TAB 1: DASHBOARD -->
+        <div id="tab-dashboard" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="glass-panel p-4 rounded-2xl flex items-center justify-between">
+                    <span class="text-xs text-slate-300 font-medium">📅 เลือกวันที่ดูข้อมูล:</span>
+                    <input type="date" id="viewDateInput" onchange="changeViewDate()" class="bg-[#070b14] border border-slate-700 rounded-xl px-3 py-2 text-xs text-emerald-400 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer">
+                </div>
+
+                <div class="glass-panel p-4 rounded-2xl flex items-center justify-between">
+                    <span class="text-xs text-slate-300 font-medium">🎯 เป้าหมายกำไรสุทธิต่อวัน (บาท):</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-emerald-400 font-bold">฿</span>
+                        <input type="number" id="dailyGoalInput" onchange="updateDailyGoal()" value="700" class="w-32 bg-[#070b14] border border-slate-700 rounded-xl px-3 py-2 text-xs text-emerald-400 font-bold text-right focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Smart Goal Countdown -->
+            <div id="smartGoalBox" class="glass-panel p-4 rounded-2xl border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 bg-emerald-500/5">
+                <div class="flex items-center gap-3">
+                    <span class="text-xl">🎯</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-emerald-400">สถานะเป้าหมายวันนี้</h4>
+                        <p class="text-[11px] text-slate-300" id="smartGoalText">กำลังโหลดข้อมูลจากคลาวด์...</p>
+                    </div>
+                </div>
+                <div id="smartGoalBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300">ซิงค์แล้ว</div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-panel border-emerald-500/30 rounded-3xl p-6 glow-soft space-y-4 md:col-span-1 flex flex-col justify-between">
+                    <div>
+                        <span class="text-xs font-medium text-emerald-400/80 tracking-wide uppercase">กำไรสุทธิ (หลังหักต้นทุน & สึกหรอ)</span>
+                        <h2 class="text-4xl sm:text-5xl font-extrabold text-emerald-400 mt-2 tracking-tight" id="netProfit">฿0</h2>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span>ความคืบหน้าเป้าหมาย</span>
+                            <span id="goalPercentText" class="font-semibold text-emerald-400">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                            <div id="progressBar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full w-[0%] transition-all duration-500"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-3xl p-6 flex flex-col justify-between space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">รายรับรวมวันนี้</span>
+                        <span class="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">📥</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-white" id="totalIncome">฿0</h3>
+                    <p class="text-xs text-slate-500">รวมรายรับทั้ง Grab และ ShopeeFood</p>
+                </div>
+
+                <div class="glass-panel rounded-3xl p-6 flex flex-col justify-between space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">ต้นทุนรวม (น้ำมัน + สึกหรอ)</span>
+                        <span class="p-2 rounded-xl bg-rose-500/10 text-rose-400">📤</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-rose-400" id="totalCost">฿0</h3>
+                    <p class="text-xs text-slate-500">รวมค่าน้ำมัน ค่าข้าว และค่าสึกหรอรถ (2.5 บ./กม.)</p>
+                </div>
+            </div>
+
+            <!-- รายละเอียดรายการในวันนี้ -->
+            <div class="glass-panel rounded-3xl p-6 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-slate-200">📋 รายละเอียดรายการในวันนี้ (Grab & Shopee)</h3>
+                    <span class="text-xs text-slate-500">ซิงค์ข้อมูลบนคลาวด์อัตโนมัติ</span>
+                </div>
+                <div class="space-y-2.5 max-h-80 overflow-y-auto pr-2" id="logList">
+                    <p class="text-slate-500 text-center py-10 text-xs">กำลังโหลดข้อมูล...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 1.5: ANALYTICS -->
+        <div id="tab-analytics" class="hidden space-y-6">
+            <div class="glass-panel p-6 sm:p-8 rounded-3xl space-y-6">
+                <div>
+                    <h3 class="font-bold text-base text-emerald-400">📊 กราฟสรุปรายรับและกำไรสุทธิย้อนหลัง 7 วัน</h3>
+                    <p class="text-xs text-slate-400 mt-1">วิเคราะห์แนวโน้มการทำเงินของคุณรวมทั้ง 2 แอปจากคลาวด์</p>
+                </div>
+                <div class="bg-[#070b14] p-4 rounded-2xl border border-slate-800 h-80 flex items-center justify-center">
+                    <canvas id="weeklyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: FAST CHECK -->
+        <div id="tab-fastcheck" class="hidden space-y-6">
+            <div class="max-w-2xl mx-auto glass-panel p-6 sm:p-8 rounded-3xl glow-soft space-y-6 border border-emerald-500/40">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="font-bold text-base text-emerald-400">⚡ โหมดดักงานเร่งด่วน (10 วิ)</h3>
+                        <p class="text-xs text-slate-400 mt-1">ประเมินความคุ้มค่าทันทีก่อนกดรับงาน</p>
+                    </div>
+                    <span class="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-medium">ปลอดภัย 100%</span>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs text-slate-300 block mb-2 font-medium">1. เลือกค่าโดยสาร (บาท)</label>
+                        <div class="grid grid-cols-4 gap-2.5">
+                            <button onclick="setFastPrice(80)" class="bg-[#070b14] border border-slate-700 hover:border-emerald-500 py-3 rounded-2xl text-xs font-semibold text-slate-200 transition cursor-pointer">฿80</button>
+                            <button onclick="setFastPrice(120)" class="bg-[#070b14] border border-slate-700 hover:border-emerald-500 py-3 rounded-2xl text-xs font-semibold text-slate-200 transition cursor-pointer">฿120</button>
+                            <button onclick="setFastPrice(160)" class="bg-[#070b14] border border-slate-700 hover:border-emerald-500 py-3 rounded-2xl text-xs font-semibold text-slate-200 transition cursor-pointer">฿160</button>
+                            <button onclick="setFastPrice(220)" class="bg-[#070b14] border border-slate-700 hover:border-emerald-500 py-3 rounded-2xl text-xs font-semibold text-slate-200 transition cursor-pointer">฿220</button>
+                        </div>
+                        <input type="number" id="fastPriceInput" placeholder="หรือพิมพ์ราคาเอง..." class="w-full mt-3 bg-[#070b14] border border-slate-700 rounded-2xl p-3.5 text-white text-xs focus:outline-none focus:border-emerald-500">
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-300 block mb-2 font-medium">2. เลือกระยะทาง (กม.)</label>
+                        <div class="grid grid-cols-4 gap-2.5">
+                            <button onclick="setFastDist(3)" class="bg-[#070b14] border border-slate-700 hover:border-emerald-500 py-3 rounded-2xl text-xs font-semibold text-slate-200 transition cursor-pointer">3 กม.</button>
+                            <button onclick="setFastDist(6)" class="bg-[#070b14] border border-slate-700 hover:border-emerald-500 py-3 rounded-2xl text-xs font-semibold text-slate-200 transition cursor-pointer">6 กม.</button>
+                            <button onclick="setFastDist(10)" class="bg-[#070b14] border border-slate-700 hover:border-emerald-500 py-3 rounded-2xl text-xs font-semibold text-slate-200 transition cursor-pointer">10 กม.</button>
+                            <button onclick="setFastDist(15)" class="bg-[#070b14] border border-slate-700 hover:border-emerald-500 py-3 rounded-2xl text-xs font-semibold text-slate-200 transition cursor-pointer">15 กม.</button>
+                        </div>
+                        <input type="number" id="fastDistInput" placeholder="หรือพิมพ์ระยะทางเอง..." class="w-full mt-3 bg-[#070b14] border border-slate-700 rounded-2xl p-3.5 text-white text-xs focus:outline-none focus:border-emerald-500">
+                    </div>
+
+                    <button onclick="runFastCheck()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-bold py-3.5 rounded-2xl transition shadow-lg text-xs mt-2 cursor-pointer">
+                        🚀 คำนวณเรตด่วน (หักค่าสึกหรอ 2.5 บ./กม.)
+                    </button>
+                </div>
+
+                <div id="fastResultCard" class="hidden glass-panel p-5 rounded-2xl space-y-3 transition-all">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-slate-400 font-medium">ผลวิเคราะห์:</span>
+                        <span id="fastBadge" class="px-3 py-1 rounded-full text-xs font-bold"></span>
+                    </div>
+                    <p class="text-xs font-medium text-white leading-relaxed" id="fastText"></p>
+                    <button onclick="acceptFastJobWithWear()" class="w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 py-3 rounded-xl text-xs font-bold transition mt-2 cursor-pointer">
+                        📥 บันทึกรายรับ + หักค่าสึกหรอขึ้นคลาวด์
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: QUICK ADD -->
+        <div id="tab-quickadd" class="hidden space-y-6">
+            <div class="max-w-2xl mx-auto space-y-6">
+                <div class="glass-panel p-4 rounded-2xl flex items-center justify-between">
+                    <span class="text-xs text-slate-300 font-medium">📅 บันทึกลงวันที่:</span>
+                    <input type="date" id="recordDateInput" onchange="syncRecordDate()" class="bg-[#070b14] border border-slate-700 rounded-xl px-3 py-2 text-xs text-emerald-400 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer">
+                </div>
+
+                <div class="glass-panel p-6 rounded-3xl space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-emerald-400 text-sm">📥 เพิ่มรายรับ (เลือกค่ายแอป)</h3>
+                        <div class="flex gap-2">
+                            <button onclick="setAppSource('Grab')" id="btnAppGrab" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 text-slate-950 transition cursor-pointer">🟢 Grab</button>
+                            <button onclick="setAppSource('Shopee')" id="btnAppShopee" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-400 transition cursor-pointer">🟠 Shopee</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2.5">
+                        <button onclick="addIncome(80)" class="bg-[#070b14] border border-slate-700 hover:border-emerald-500 py-3 rounded-2xl text-xs text-emerald-300 font-bold transition cursor-pointer">+80</button>
+                        <button onclick="addIncome(120)" class="bg-[#070b14] border border-slate-700 hover:border-emerald-500 py-3 rounded-2xl text-xs text-emerald-300 font-bold transition cursor-pointer">+120</button>
+                        <button onclick="addIncome(150)" class="bg-[#070b14] border border-slate-700 hover:border-emerald-500 py-3 rounded-2xl text-xs text-emerald-300 font-bold transition cursor-pointer">+150</button>
+                        <button onclick="addIncome(200)" class="bg-[#070b14] border border-slate-700 hover:border-emerald-500 py-3 rounded-2xl text-xs text-emerald-300 font-bold transition cursor-pointer">+200</button>
+                    </div>
+                    <div class="flex gap-2.5">
+                        <input type="number" id="customIncome" placeholder="ระบุจำนวนเงิน..." class="flex-1 bg-[#070b14] border border-slate-700 rounded-2xl p-3.5 text-white text-xs focus:outline-none focus:border-emerald-500">
+                        <button onclick="addCustomIncome()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 rounded-2xl text-xs font-semibold transition cursor-pointer">เพิ่มรายรับ</button>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 rounded-3xl space-y-4">
+                    <h3 class="font-bold text-rose-400 text-sm">📤 เพิ่มรายจ่าย (น้ำมัน / ข้าว / สึกหรอ)</h3>
+                    <div class="grid grid-cols-3 gap-2.5">
+                        <button onclick="addExpensePreset('เติมน้ำมัน', 300)" class="bg-[#070b14] border border-slate-700 hover:border-rose-500 py-3 rounded-2xl text-xs text-rose-300 transition cursor-pointer">⛽ น้ำมัน 300</button>
+                        <button onclick="addExpensePreset('ค่าข้าว/น้ำ', 60)" class="bg-[#070b14] border border-slate-700 hover:border-rose-500 py-3 rounded-2xl text-xs text-rose-300 transition cursor-pointer">🍱 ข้าว 60</button>
+                        <button onclick="addExpensePreset('ค่าสึกหรอรถสะสม', 100)" class="bg-[#070b14] border border-slate-700 hover:border-rose-500 py-3 rounded-2xl text-xs text-rose-300 transition cursor-pointer">🔧 สึกหรอ 100</button>
+                    </div>
+                    <div class="space-y-3">
+                        <input type="text" id="expName" placeholder="ชื่อรายการ เช่น ค่าซ่อมยาง" class="w-full bg-[#070b14] border border-slate-700 rounded-2xl p-3.5 text-white text-xs focus:outline-none focus:border-rose-500">
+                        <div class="flex gap-2.5">
+                            <input type="number" id="customExpense" placeholder="จำนวนเงิน..." class="flex-1 bg-[#070b14] border border-slate-700 rounded-2xl p-3.5 text-white text-xs focus:outline-none focus:border-rose-500">
+                            <button onclick="addCustomExpense()" class="bg-rose-600 hover:bg-rose-500 text-white px-6 rounded-2xl text-xs font-semibold transition cursor-pointer">บันทึกจ่าย</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: EXCEL MONTHLY SHEET -->
+        <div id="tab-excelSheet" class="hidden space-y-6">
+            <div class="glass-panel p-6 sm:p-8 rounded-3xl space-y-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h3 class="font-bold text-base text-emerald-400">📅 ตารางบันทึกรายวัน (ซิงค์คลาวด์)</h3>
+                        <p class="text-xs text-slate-400 mt-1">คลิกแถวเพื่อดูข้อมูลย้อนหลัง หรือจัดการลบรายการ</p>
+                    </div>
+                    <span class="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 font-medium">Cloud Database</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-[#070b14] p-5 rounded-2xl border border-slate-800 text-center">
+                    <div>
+                        <span class="text-xs text-slate-400 block mb-1">รับรวมทั้งสิ้น</span>
+                        <span class="text-lg font-bold text-white" id="monthTotalInc">฿0</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-400 block mb-1">ต้นทุนรวม</span>
+                        <span class="text-lg font-bold text-rose-400" id="monthTotalCost">฿0</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-400 block mb-1">กำไรสุทธิเดือนนี้</span>
+                        <span class="text-lg font-bold text-emerald-400" id="monthNetProfit">฿0</span>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto border border-slate-800 rounded-2xl">
+                    <table class="w-full text-left text-xs sm:text-sm text-slate-300">
+                        <thead class="bg-[#070b14] text-emerald-400 uppercase text-xs border-b border-slate-800">
+                            <tr>
+                                <th class="p-4">วัน / วันที่</th>
+                                <th class="p-4 text-right">รายรับ</th>
+                                <th class="p-4 text-right">ต้นทุน</th>
+                                <th class="p-4 text-right">กำไรสุทธิ</th>
+                                <th class="p-4 text-right">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="excelTableBody" class="divide-y divide-slate-800/60 bg-[#070b14]/40">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Script Logic with Supabase Cloud Sync -->
+    <script>
+        // ตั้งค่าเชื่อมต่อ Supabase ของคุณ
+        const SUPABASE_URL = 'https://tytulcsckeerazbpjjis.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_IPpyJciRmsaN73bniNSOjQ_4JIuftLv'; // *ใส่ Publishable key เต็มๆ ของคุณตรงนี้*
+        
+        let supabaseClient = null;
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch(e) {
+            console.error("Supabase init error:", e);
+        }
+
+        let dbData = {};
+        let dailyGoal = parseFloat(localStorage.getItem('rider_korat_goal_cloud')) || 700;
+        let todayStr = new Date().toISOString().split('T')[0];
+        let viewingDate = todayStr;
+        let tempFastPrice = 0;
+        let tempFastDist = 0;
+        let currentAppSource = 'Grab';
+        let myChart = null;
+
+        document.getElementById('recordDateInput').value = todayStr;
+        document.getElementById('viewDateInput').value = todayStr;
+        document.getElementById('dailyGoalInput').value = dailyGoal;
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            await fetchCloudData();
+            switchTab('dashboard');
+        });
+
+        // ดึงข้อมูลทั้งหมดจาก Supabase Cloud
+        async function fetchCloudData() {
+            if (!supabaseClient) return;
+            try {
+                let { data, error } = await supabaseClient.from('rider_logs').select('*');
+                if (error) {
+                    console.error('Error fetching:', error);
+                    document.getElementById('currentDateHeader').innerText = 'เชื่อมต่อคลาวด์ไม่สำเร็จ (เช็ค Key)';
+                    return;
+                }
+
+                dbData = {};
+                if (data) {
+                    data.forEach(row => {
+                        let d = row.date;
+                        if (!dbData[d]) {
+                            dbData[d] = { income: 0, cost: 0, logs: [] };
+                        }
+                        dbData[d].logs.push({
+                            id: row.id,
+                            type: row.type,
+                            source: row.app_source,
+                            name: row.name,
+                            amount: parseFloat(row.amount),
+                            time: row.date
+                        });
+                        if (row.type === 'income') {
+                            dbData[d].income += parseFloat(row.amount);
+                        } else {
+                            dbData[d].cost += parseFloat(row.amount);
+                        }
+                    });
+                }
+                document.getElementById('currentDateHeader').innerText = '☁️ ซิงค์ข้อมูลคลาวด์สำเร็จ';
+                updateUI();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // บันทึกข้อมูลลง Supabase Cloud
+        async function addLogToCloud(dateStr, type, source, name, amount) {
+            if (!supabaseClient) {
+                alert('ยังไม่ได้เชื่อมต่อระบบคลาวด์');
+                return;
+            }
+            let { error } = await supabaseClient.from('rider_logs').insert([
+                { date: dateStr, type: type, app_source: source, name: name, amount: amount }
+            ]);
+            if (error) {
+                alert('เกิดข้อผิดพลาดในการบันทึก: ' + error.message);
+            } else {
+                await fetchCloudData();
+            }
+        }
+
+        // ลบข้อมูลบน Supabase Cloud
+        async function deleteLogFromCloud(logId, dateStr) {
+            if (!supabaseClient) return;
+            let { error } = await supabaseClient.from('rider_logs').delete().eq('id', logId);
+            if (error) {
+                alert('ลบไม่สำเร็จ: ' + error.message);
+            } else {
+                await fetchCloudData();
+                renderExcelTable();
+            }
+        }
+
+        // ลบข้อมูลทั้งวันบน Cloud
+        async function deleteDayRecordCloud(dateStr, event) {
+            event.stopPropagation();
+            if(confirm(`ต้องการลบข้อมูลทั้งหมดของวันที่ ${dateStr} บนคลาวด์ใช่หรือไม่?`)) {
+                let { error } = await supabaseClient.from('rider_logs').delete().eq('date', dateStr);
+                if (error) {
+                    alert('ลบไม่สำเร็จ: ' + error.message);
+                } else {
+                    await fetchCloudData();
+                    renderExcelTable();
+                }
+            }
+        }
+
+        function setAppSource(source) {
+            currentAppSource = source;
+            let btnG = document.getElementById('btnAppGrab');
+            let btnS = document.getElementById('btnAppShopee');
+            if(source === 'Grab') {
+                btnG.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 text-slate-950 transition cursor-pointer";
+                btnS.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-400 transition cursor-pointer";
+            } else {
+                btnS.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-500 text-slate-950 transition cursor-pointer";
+                btnG.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-400 transition cursor-pointer";
+            }
+        }
+
+        function getRecordByDate(dateStr) {
+            if (!dbData[dateStr]) {
+                dbData[dateStr] = { income: 0, cost: 0, logs: [] };
+            }
+            return dbData[dateStr];
+        }
+
+        function updateDailyGoal() {
+            let val = parseFloat(document.getElementById('dailyGoalInput').value);
+            if(val > 0) {
+                dailyGoal = val;
+                localStorage.setItem('rider_korat_goal_cloud', dailyGoal);
+                updateUI();
+            }
+        }
+
+        function formatThaiDate(dateStr) {
+            let days = ['วันอาทิตย์', 'วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์'];
+            let months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+            let d = new Date(dateStr);
+            if(isNaN(d)) return dateStr;
+            return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+        }
+
+        function switchTab(tab) {
+            ['dashboard', 'analytics', 'fastcheck', 'quickadd', 'excelSheet'].forEach(t => {
+                let el = document.getElementById('tab-' + t);
+                let btn = document.getElementById('btn-' + t);
+                if(el) el.classList.add('hidden');
+                if(btn) btn.className = "px-4 py-2 text-xs font-medium rounded-xl text-slate-400 hover:text-white transition whitespace-nowrap cursor-pointer";
+            });
+
+            let activeEl = document.getElementById('tab-' + tab);
+            let activeBtn = document.getElementById('btn-' + tab);
+            if(activeEl) activeEl.classList.remove('hidden');
+            if(activeBtn) activeBtn.className = "px-4 py-2 text-xs font-semibold rounded-xl text-emerald-400 bg-emerald-500/10 transition shadow-sm whitespace-nowrap cursor-pointer";
+
+            if(tab === 'excelSheet') {
+                renderExcelTable();
+            } else if(tab === 'analytics') {
+                renderWeeklyChart();
+            } else if(tab === 'dashboard' || tab === 'quickadd') {
+                updateUI();
+            }
+        }
+
+        function changeViewDate() {
+            viewingDate = document.getElementById('viewDateInput').value || todayStr;
+            document.getElementById('recordDateInput').value = viewingDate;
+            updateUI();
+        }
+
+        function syncRecordDate() {
+            viewingDate = document.getElementById('recordDateInput').value || todayStr;
+            document.getElementById('viewDateInput').value = viewingDate;
+        }
+
+        function setFastPrice(price) {
+            tempFastPrice = price;
+            document.getElementById('fastPriceInput').value = price;
+        }
+
+        function setFastDist(dist) {
+            tempFastDist = dist;
+            document.getElementById('fastDistInput').value = dist;
+        }
+
+        function runFastCheck() {
+            let pInput = document.getElementById('fastPriceInput').value;
+            let dInput = document.getElementById('fastDistInput').value;
+            let price = pInput ? parseFloat(pInput) : tempFastPrice;
+            let dist = dInput ? parseFloat(dInput) : tempFastDist;
+
+            if(!price || !dist || price <= 0 || dist <= 0) return alert('กรุณาเลือกหรือกรอกราคาและระยะทางให้ครบถ้วน');
+
+            tempFastPrice = price;
+            tempFastDist = dist;
+
+            let estWearCost = dist * 2.5; 
+            let net = price - estWearCost;
+            let rate = price / dist;
+
+            let card = document.getElementById('fastResultCard');
+            let badge = document.getElementById('fastBadge');
+            let text = document.getElementById('fastText');
+            card.classList.remove('hidden');
+
+            if(rate >= 12) {
+                card.className = "glass-panel p-5 rounded-2xl space-y-3 glow-soft transition-all border-emerald-500/40";
+                badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                badge.innerText = "🔥 คุ้มค่า! (หักค่าสึกหรอแล้ว)";
+                text.innerText = `ระยะทาง ${dist} กม. หักค่าสึกหรอ ~฿${estWearCost.toFixed(0)} เหลือสุทธิ ~฿${net.toFixed(0)}`;
+            } else {
+                card.className = "glass-panel p-5 rounded-2xl space-y-3 glow-soft transition-all border-rose-500/40";
+                badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30";
+                badge.innerText = "⚠️ เรตค่อนข้างต่ำ พิจารณาดู";
+                text.innerText = `หักค่าสึกหรอ ${dist} กม. (฿${estWearCost.toFixed(0)}) กำไรเหลือประมาณ ฿${net.toFixed(0)}`;
+            }
+        }
+
+        async function acceptFastJobWithWear() {
+            if(tempFastPrice <= 0) return alert('ยังไม่มีข้อมูลงาน');
+            let targetDate = viewingDate;
+            let estWearCost = tempFastDist * 2.5;
+
+            await addLogToCloud(targetDate, 'income', 'Grab', `งาน Grab (${tempFastPrice}บ.)`, tempFastPrice);
+            await addLogToCloud(targetDate, 'expense', 'System', `ค่าสึกหรอ (${tempFastDist}กม.)`, estWearCost);
+
+            alert(`บันทึกรายรับ Grab ฿${tempFastPrice} และหักค่าสึกหรอขึ้นคลาวด์เรียบร้อย!`);
+            switchTab('dashboard');
+        }
+
+        async function addIncome(amount) {
+            let selectedDate = document.getElementById('recordDateInput').value || todayStr;
+            viewingDate = selectedDate;
+            let sourceName = currentAppSource === 'Grab' ? '🟢 GrabFood' : '🟠 ShopeeFood';
+            
+            await addLogToCloud(selectedDate, 'income', currentAppSource, `รายรับจาก ${sourceName}`, amount);
+            document.getElementById('viewDateInput').value = selectedDate;
+            switchTab('dashboard');
+        }
+
+        function addCustomIncome() {
+            let input = document.getElementById('customIncome');
+            let val = parseFloat(input.value);
+            if(!val || val <= 0) return alert('กรุณากรอกจำนวนเงิน');
+            addIncome(val);
+            input.value = '';
+        }
+
+        async function addExpensePreset(name, amount) {
+            let selectedDate = document.getElementById('recordDateInput').value || todayStr;
+            viewingDate = selectedDate;
+            
+            await addLogToCloud(selectedDate, 'expense', 'System', name, amount);
+            document.getElementById('viewDateInput').value = selectedDate;
+            switchTab('dashboard');
+        }
+
+        async function addCustomExpense() {
+            let nameInput = document.getElementById('expName');
+            let amtInput = document.getElementById('customExpense');
+            let name = nameInput.value || 'ค่าใช้จ่ายทั่วไป';
+            let val = parseFloat(amtInput.value);
+
+            if(!val || val <= 0) return alert('กรุณากรอกจำนวนเงิน');
+
+            let selectedDate = document.getElementById('recordDateInput').value || todayStr;
+            viewingDate = selectedDate;
+
+            await addLogToCloud(selectedDate, 'expense', 'System', name, val);
+            nameInput.value = '';
+            amtInput.value = '';
+            document.getElementById('viewDateInput').value = selectedDate;
+            switchTab('dashboard');
+        }
+
+        function updateUI() {
+            let rec = getRecordByDate(viewingDate);
+            let net = rec.income - rec.cost;
+
+            let thaiStr = formatThaiDate(viewingDate);
+            let headerEl = document.getElementById('currentDateHeader');
+            let profitEl = document.getElementById('netProfit');
+            let incEl = document.getElementById('totalIncome');
+            let costEl = document.getElementById('totalCost');
+
+            if(profitEl) profitEl.innerText = `฿${net.toLocaleString()}`;
+            if(incEl) incEl.innerText = `฿${rec.income.toLocaleString()}`;
+            if(costEl) costEl.innerText = `฿${rec.cost.toLocaleString()}`;
+
+            let percent = (net / dailyGoal) * 100;
+            if(percent > 100) percent = 100;
+            if(percent < 0) percent = 0;
+            
+            let progressBar = document.getElementById('progressBar');
+            let goalText = document.getElementById('goalPercentText');
+            if(progressBar) progressBar.style.width = `${percent}%`;
+            if(goalText) goalText.innerText = `${percent.toFixed(0)}%`;
+
+            let smartText = document.getElementById('smartGoalText');
+            let smartBadge = document.getElementById('smartGoalBadge');
+            let smartBox = document.getElementById('smartGoalBox');
+            let remaining = dailyGoal - net;
+
+            if (net >= dailyGoal) {
+                smartText.innerText = `ยอดเยี่ยม! คุณทะลุเป้าหมายกำไรสุทธิวันนี้แล้ว (+฿${(net - dailyGoal).toLocaleString()})`;
+                smartBadge.innerText = "🎯 สำเร็จเป้าหมาย!";
+                smartBox.className = "glass-panel p-4 rounded-2xl border border-emerald-500/50 flex flex-col sm:flex-row items-center justify-between gap-3 bg-emerald-500/10";
+            } else {
+                let estJobs = Math.ceil(remaining / 100);
+                smartText.innerText = `ขาดอีก ฿${remaining.toLocaleString()} ถึงเป้า (ประมาณอีก ${estJobs} งานโดยเฉลี่ย)`;
+                smartBadge.innerText = `สู้ต่ออีกนิด!`;
+                smartBox.className = "glass-panel p-4 rounded-2xl border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 bg-amber-500/5";
+            }
+
+            let logList = document.getElementById('logList');
+            if(logList) {
+                if(rec.logs.length === 0) {
+                    logList.innerHTML = `<p class="text-slate-500 text-center py-10 text-xs">ยังไม่มีรายการในวันที่เลือก</p>`;
+                    return;
+                }
+
+                let html = '';
+                rec.logs.forEach(item => {
+                    let colorClass = item.type === 'income' ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10';
+                    let sign = item.type === 'income' ? '+' : '-';
+                    let badgeApp = '';
+                    if(item.source === 'Grab') badgeApp = '<span class="text-[9px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Grab</span>';
+                    else if(item.source === 'Shopee') badgeApp = '<span class="text-[9px] px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">Shopee</span>';
+
+                    html += `<div class="flex justify-between items-center bg-[#070b14] p-3.5 rounded-2xl border border-slate-800">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl ${colorClass} flex items-center justify-center font-bold text-xs">${sign}</div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <p class="font-medium text-white text-xs">${item.name}</p>
+                                    ${badgeApp}
+                                </div>
+                                <span class="text-slate-500 text-[10px]">${item.time}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="${item.type === 'income' ? 'text-emerald-400' : 'text-rose-400'} font-bold text-xs">${sign}฿${item.amount.toLocaleString()}</span>
+                            <button onclick="deleteLogFromCloud(${item.id}, '${viewingDate}')" class="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition cursor-pointer" title="ลบรายการ">🗑️</button>
+                        </div>
+                    </div>`;
+                });
+                logList.innerHTML = html;
+            }
+        }
+
+        function renderWeeklyChart() {
+            let labels = [];
+            let incomeData = [];
+            let netData = [];
+
+            for (let i = 6; i >= 0; i--) {
+                let d = new Date();
+                d.setDate(d.getDate() - i);
+                let dStr = d.toISOString().split('T')[0];
+                let shortName = d.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' });
+                labels.push(shortName);
+
+                let dayRec = dbData[dStr] || { income: 0, cost: 0 };
+                incomeData.push(dayRec.income);
+                netData.push(dayRec.income - dayRec.cost);
+            }
+
+            let ctx = document.getElementById('weeklyChart').getContext('2d');
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'รายรับรวม (Grab + Shopee)',
+                            data: incomeData,
+                            backgroundColor: 'rgba(16, 185, 129, 0.5)',
+                            borderColor: '#10b981',
+                            borderWidth: 1,
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'กำไรสุทธิ',
+                            data: netData,
+                            backgroundColor: 'rgba(56, 189, 248, 0.5)',
+                            borderColor: '#38bdf8',
+                            borderWidth: 1,
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8', font: { family: 'Prompt', size: 11 } } }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { family: 'Prompt', size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { ticks: { color: '#94a3b8', font: { family: 'Prompt', size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+        }
+
+        function jumpToDate(dateStr) {
+            viewingDate = dateStr;
+            let viewInput = document.getElementById('viewDateInput');
+            let recInput = document.getElementById('recordDateInput');
+            if(viewInput) viewInput.value = dateStr;
+            if(recInput) recInput.value = dateStr;
+            switchTab('dashboard');
+        }
+
+        function renderExcelTable() {
+            let tbody = document.getElementById('excelTableBody');
+            if(!tbody) return;
+
+            let keys = Object.keys(dbData).filter(k => {
+                let d = dbData[k];
+                return d.income > 0 || d.cost > 0 || d.logs.length > 0;
+            }).sort().reverse();
+
+            if(keys.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500 text-xs">ยังไม่มีข้อมูลในคลาวด์</td></tr>`;
+                document.getElementById('monthTotalInc').innerText = '฿0';
+                document.getElementById('monthTotalCost').innerText = '฿0';
+                document.getElementById('monthNetProfit').innerText = '฿0';
+                return;
+            }
+
+            let html = '';
+            let mInc = 0;
+            let mCost = 0;
+
+            keys.forEach(dateKey => {
+                let dayData = dbData[dateKey];
+                let dayNet = dayData.income - dayData.cost;
+                mInc += dayData.income;
+                mCost += dayData.cost;
+
+                let thaiDayStr = formatThaiDate(dateKey);
+
+                html += `
+                    <tr onclick="jumpToDate('${dateKey}')" class="hover:bg-emerald-500/10 cursor-pointer transition border-b border-slate-800/60">
+                        <td class="p-4 font-medium text-emerald-400 underline">${thaiDayStr} ✏️</td>
+                        <td class="p-4 text-right text-emerald-400 font-semibold">+฿${dayData.income.toLocaleString()}</td>
+                        <td class="p-4 text-right text-rose-400">-฿${dayData.cost.toLocaleString()}</td>
+                        <td class="p-4 text-right font-bold text-white">฿${dayNet.toLocaleString()}</td>
+                        <td class="p-4 text-right">
+                            <button onclick="deleteDayRecordCloud('${dateKey}', event)" class="bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer">🗑️ ลบทั้งวัน</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            let mNet = mInc - mCost;
+            document.getElementById('monthTotalInc').innerText = `฿${mInc.toLocaleString()}`;
+            document.getElementById('monthTotalCost').innerText = `฿${mCost.toLocaleString()}`;
+            document.getElementById('monthNetProfit').innerText = `฿${mNet.toLocaleString()}`;
+        }
+    </script>
+</body>
+</html>
