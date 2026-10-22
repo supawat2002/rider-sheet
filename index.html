@@ -304,7 +304,7 @@
     <!-- Script Logic -->
     <script>
         const SUPABASE_URL = 'https://tytulcsckeerazbpjjis.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dHVsY3Nja2VlcmF6YnBqamlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2ODIxODcsImV4cCI6MjEwODI1ODE4N30.vzm-06D2T46EFyNLWqWljledIkZ8l2N2xy1wPPh6pBI'; // ใส่คีย์เดิมของคุณ
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dHVsY3Nja2VlcmF6YnBqaWlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyMzQ1NjcsImV4cCI6MjA1NjgxMDU2N30.ตัวคีย์ของคุณ'; // ใส่คีย์เดิมของคุณ
         
         let supabaseClient = null;
         try {
@@ -383,6 +383,7 @@
 
         async function deleteLogFromCloud(logId, dateStr) {
             if (!supabaseClient) return;
+            // ใช้คำสั่งลบด้วย id ของแถวโดยตรง
             let { error } = await supabaseClient.from('rider_logs').delete().eq('id', logId);
             if (error) {
                 alert('ลบไม่สำเร็จ: ' + error.message);
@@ -757,7 +758,6 @@
                 `;
             });
 
-            tbody.html = html;
             tbody.innerHTML = html;
             let mNet = mInc - mCost;
             document.getElementById('monthTotalInc').innerText = `฿${mInc.toLocaleString()}`;
